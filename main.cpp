@@ -72,7 +72,7 @@ namespace {
         last_beat_time = start_time;
       }
 
-      // Duration since last print
+      // Duration since last beat
       if (count > 1) {
         auto now = chrono::system_clock::now();
         auto duration =
