@@ -166,9 +166,9 @@ int main() {
   cursorInfo.bVisible = false;  // set the cursor visibility
   SetConsoleCursorInfo(hStdout, &cursorInfo);
 
-  std::thread count_th(Beat);
+  std::thread beat_th(Beat);
   std::thread display_time_th(Display);
 
   display_time_th.join();
-  count_th.join();
+  beat_th.join();
 }
