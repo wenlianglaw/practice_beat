@@ -58,7 +58,9 @@ namespace {
       char ch = _getch();
       if (ch == 'c') {
         count = 0;
+        mutex.lock();
         system("cls");
+        mutex.unlock();
       } else if (ch == 'q') {
         exit = true;
       } else {
