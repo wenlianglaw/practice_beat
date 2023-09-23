@@ -90,10 +90,7 @@ namespace {
         last_beat_time = chrono::system_clock::now();
       }
 
-      // Wait for the signal to print count.
-      std::unique_lock<std::mutex> lk(mutex);
-      SetConsoleCursorPosition(hStdout, { 0, 0 });
-      printf("%d\n", count);
+
     }
   }
 
@@ -154,6 +151,10 @@ namespace {
         SetConsoleCursorPosition(hStdout, COORD{ 0, 1 });
       }  // Print time and info
 
+      mutex.lock();
+      SetConsoleCursorPosition(hStdout, { 0, 0 });
+      printf("%d\n", count);
+      mutex.unlock();
       std::this_thread::sleep_for(chrono::milliseconds(50));
     }
   }
