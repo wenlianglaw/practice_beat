@@ -30,131 +30,137 @@
 #include <valarray>
 #include <vector>
 
+HANDLE hStdout;
 
-namespace {
-  namespace chrono = std::chrono;
+namespace chrono = std::chrono;
+std::mutex mutex;
 
-  HANDLE hStdout;
+bool quit = false;
 
-  std::mutex mutex;
+// start time for this practice.
+chrono::system_clock::time_point start_time;
+chrono::system_clock::time_point last_beat_time;
 
-  bool exit = false;
+int count = 0;
 
-  // start time for this practice.
-  chrono::system_clock::time_point start_time;
-  chrono::system_clock::time_point last_beat_time;
+// 25 ms per tick.
+std::vector<double> interval_history;
+int interval_i = -1;
+constexpr int interval_size = 5;
 
-  int count = 0;
+void Beat() {
+  char ch = 0;
 
-  // 25 ms per tick.
-  std::vector<double> interval_history;
-  int interval_i = -1;
-  constexpr int interval_size = 5;
-
-  void Beat() {
-    char ch = 0;
-
-    while (!exit) {
-      char ch = _getch();
-      if (ch == 'c') {
-        count = 0;
-        mutex.lock();
-        system("cls");
-        mutex.unlock();
-      } else if (ch == 'q') {
-        exit = true;
-      } else {
-        count++;
-      }
-
-      // Start a new practice
-      if (count == 1) {
-        start_time = chrono::system_clock::now();
-        interval_history.clear();
-        last_beat_time = start_time;
-      }
-
-      // Duration since last beat
-      if (count > 1) {
-        auto now = chrono::system_clock::now();
-        auto duration =
-          chrono::duration_cast<chrono::duration<double, std::milli>>(
-            now - last_beat_time)
-          .count() / 25;
-        if (interval_history.size() < interval_size) {
-          interval_history.push_back(duration);
-        } else {
-          interval_i = (interval_i + 1) % interval_size;
-          interval_history[interval_i] = duration;
-        }
-        last_beat_time = chrono::system_clock::now();
-      }
-
+  while (!quit) {
+    char ch = _getch();
+    if (ch == 'c') {
+      count = 0;
+      mutex.lock();
+      system("cls");
+      mutex.unlock();
+    } else if (ch == 'q') {
+      quit = true;
+    } else {
+      count++;
     }
-  }
 
-  void Display() {
-    chrono::system_clock::time_point last_print_time = chrono::system_clock::now() - chrono::seconds(2);
-    std::string msg{};
-    while (!exit) {
-      std::unique_lock<std::mutex> lk(mutex);
+    // Start a new practice
+    if (count == 1) {
+      start_time = chrono::system_clock::now();
+      interval_history.clear();
+      last_beat_time = start_time;
+    }
+
+    // Duration since last beat
+    if (count > 1) {
       auto now = chrono::system_clock::now();
-      if (chrono::duration_cast<chrono::milliseconds>(now - last_print_time)
-        .count() >= 400) {
-        SetConsoleCursorPosition(hStdout, { 20, 0 });
-        const std::time_t now_time_t = chrono::system_clock::to_time_t(now);
-        std::cout << std::put_time(std::localtime(&now_time_t),
-          "%Y-%m-%d %H:%M:%S");
-
-        // Display BPM
-        SetConsoleCursorPosition(hStdout, { 20, 1 });
-        int duration_from_start =
-          chrono::duration_cast<chrono::milliseconds>(now - start_time).count();
-        std::cout << "BPM (beats per minute): ";
-        if (duration_from_start == 0 || count == 0) {
-          std::cout << "N/A";
-        } else {
-          std::cout << (double)count * 1000 * 60 / duration_from_start;
-        }
-
-        // Display BPS
-        SetConsoleCursorPosition(hStdout, { 20, 2 });
-        std::cout << "BPM (beats per seconds): ";
-        if (duration_from_start == 0 || count == 0) {
-          std::cout << "N/A";
-        } else {
-          std::cout << (double)count * 1000 / duration_from_start;
-        }
-
-        // variation of the intervals
-        msg = "Variation for beats (25 ms tick): ";
-        if (count == 0 || interval_history.empty()) {
-          msg += "N/A";
-        } else {
-          auto& vec = interval_history;
-          double sum = std::accumulate(vec.begin(), vec.end(), 0.0);
-          double mean = sum / vec.size();
-
-          double sq_sum =
-            std::inner_product(vec.begin(), vec.end(), vec.begin(), 0.0);
-          double stdev = std::sqrt(sq_sum / vec.size() - mean * mean);
-          msg += std::to_string(stdev) + std::string("     ");
-        }
-        SetConsoleCursorPosition(hStdout, { 20, 3 });
-        std::cout << msg;
-        msg.clear();
-
-        last_print_time = now;
-        SetConsoleCursorPosition(hStdout, COORD{ 0, 1 });
-      }  // Print time and info
-
-      SetConsoleCursorPosition(hStdout, { 0, 0 });
-      printf("%d\n", count);
-
-      std::this_thread::sleep_for(chrono::milliseconds(50));
+      auto duration =
+          chrono::duration_cast<chrono::duration<double, std::milli>>(
+              now - last_beat_time)
+              .count() /
+          25;
+      if (interval_history.size() < interval_size) {
+        interval_history.push_back(duration);
+      } else {
+        interval_i = (interval_i + 1) % interval_size;
+        interval_history[interval_i] = duration;
+      }
+      last_beat_time = chrono::system_clock::now();
     }
   }
-}  // namespace
+}
+
+void Display() {
+  chrono::system_clock::time_point last_print_time =
+      chrono::system_clock::now() - chrono::seconds(2);
+  std::string msg{};
+  while (!quit) {
+    auto now = chrono::system_clock::now();
+    if (chrono::duration_cast<chrono::milliseconds>(now - last_print_time)
+            .count() >= 400) {
+      SetConsoleCursorPosition(hStdout, {20, 0});
+      const std::time_t now_time_t = chrono::system_clock::to_time_t(now);
+      mutex.lock();
+      std::cout << std::put_time(std::localtime(&now_time_t),
+                                 "%Y-%m-%d %H:%M:%S");
+      mutex.unlock();
+
+      // Display BPM
+      SetConsoleCursorPosition(hStdout, {20, 1});
+      int duration_from_start =
+          chrono::duration_cast<chrono::milliseconds>(now - start_time).count();
+      mutex.lock();
+      std::cout << "BPM (beats per minute): ";
+      if (duration_from_start == 0 || count == 0) {
+        std::cout << "N/A";
+      } else {
+        std::cout << (double)count * 1000 * 60 / duration_from_start;
+      }
+      mutex.unlock();
+
+      // Display BPS
+      mutex.lock();
+      SetConsoleCursorPosition(hStdout, {20, 2});
+      std::cout << "BPM (beats per seconds): ";
+      if (duration_from_start == 0 || count == 0) {
+        std::cout << "N/A";
+      } else {
+        std::cout << (double)count * 1000 / duration_from_start;
+      }
+      mutex.unlock();
+
+      // variation of the intervals
+      msg = "Variation for beats (25 ms tick): ";
+      if (count == 0 || interval_history.empty()) {
+        msg += "N/A";
+      } else {
+        auto& vec = interval_history;
+        double sum = std::accumulate(vec.begin(), vec.end(), 0.0);
+        double mean = sum / vec.size();
+
+        double sq_sum =
+            std::inner_product(vec.begin(), vec.end(), vec.begin(), 0.0);
+        double stdev = std::sqrt(sq_sum / vec.size() - mean * mean);
+        msg += std::to_string(stdev) + std::string("     ");
+      }
+      mutex.lock();
+      SetConsoleCursorPosition(hStdout, {20, 3});
+      std::cout << msg;
+      mutex.unlock();
+      msg.clear();
+
+      last_print_time = now;
+      SetConsoleCursorPosition(hStdout, COORD{0, 1});
+    }  // Print time and info
+
+    mutex.lock();
+    SetConsoleCursorPosition(hStdout, {0, 0});
+    printf("%d\n", count);
+    mutex.unlock();
+
+    std::this_thread::sleep_for(chrono::milliseconds(50));
+  }
+}
 
 int main() {
   hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
