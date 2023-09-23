@@ -90,7 +90,6 @@ namespace {
         last_beat_time = chrono::system_clock::now();
       }
 
-
     }
   }
 
@@ -98,10 +97,10 @@ namespace {
     chrono::system_clock::time_point last_print_time = chrono::system_clock::now() - chrono::seconds(2);
     std::string msg{};
     while (!exit) {
+      std::unique_lock<std::mutex> lk(mutex);
       auto now = chrono::system_clock::now();
       if (chrono::duration_cast<chrono::milliseconds>(now - last_print_time)
         .count() >= 400) {
-        std::unique_lock<std::mutex> lk(mutex);
         SetConsoleCursorPosition(hStdout, { 20, 0 });
         const std::time_t now_time_t = chrono::system_clock::to_time_t(now);
         std::cout << std::put_time(std::localtime(&now_time_t),
@@ -128,7 +127,6 @@ namespace {
         }
 
         // variation of the intervals
-        lk.unlock();
         msg = "Variation for beats (25 ms tick): ";
         if (count == 0 || interval_history.empty()) {
           msg += "N/A";
@@ -142,7 +140,6 @@ namespace {
           double stdev = std::sqrt(sq_sum / vec.size() - mean * mean);
           msg += std::to_string(stdev) + std::string("     ");
         }
-        lk.lock();
         SetConsoleCursorPosition(hStdout, { 20, 3 });
         std::cout << msg;
         msg.clear();
@@ -151,10 +148,9 @@ namespace {
         SetConsoleCursorPosition(hStdout, COORD{ 0, 1 });
       }  // Print time and info
 
-      mutex.lock();
       SetConsoleCursorPosition(hStdout, { 0, 0 });
       printf("%d\n", count);
-      mutex.unlock();
+
       std::this_thread::sleep_for(chrono::milliseconds(50));
     }
   }
