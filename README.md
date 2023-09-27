@@ -1,9 +1,10 @@
-# practice_beat (Windows Only)
+# practice_beat
 A program to practice the beat rhythm.  Type `c` to reset, `q` to exit, any other keys to make a beat.
+
+On non-Windows OS, it uses ncurses library to control the cursor.
 
 
 ![demo.gif](https://github.com/wenlianglaw/practice_beat/blob/main/demo.gif)
-
 
 
 120 BPM Metronome:  https://www.youtube.com/watch?v=xpiVrEET-YQ&ab_channel=DrumsetFundamentals
