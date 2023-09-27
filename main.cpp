@@ -115,7 +115,7 @@ public:
 LoopList<double> interval_history(5);
 
 // Last 10 beats timestamp in ms.
-LoopList<int64_t> last_beats(10);
+LoopList<int64_t> last_beats(30);
 
 /* -----------I/O------------------- */
 char GetKeyboardInput() {
@@ -142,6 +142,7 @@ void SetupWindowsDisplay() {
 void PrintStr(int x, int y, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
+  mutex.lock();
 #ifdef _WINDOWS
   SetConsoleCursorPosition(hStdout, {x, y});
   printf(fmt, args);
@@ -149,6 +150,7 @@ void PrintStr(int x, int y, const char *fmt, ...) {
   move(y, x);
   vwprintw(stdscr, fmt, args);
 #endif
+  mutex.unlock();
   va_end(args);
 }
 
@@ -218,9 +220,7 @@ void Display() {
       const std::time_t now_time_t = chrono::system_clock::to_time_t(now);
       std::stringstream ss;
       ss << std::put_time(std::localtime(&now_time_t), "%Y-%m-%d %H:%M:%S");
-      mutex.lock();
       PrintStr(20, 0, ss.str().c_str());
-      mutex.unlock();
 
       // Display BPM
       int64_t unix_ms = chrono::duration_cast<chrono::milliseconds>(
@@ -229,7 +229,6 @@ void Display() {
       int duration_for_last_beats = unix_ms - last_beats.head();
       int size_for_last_beats = last_beats.Size();
 
-      mutex.lock();
       if (last_beats.Empty()) {
         PrintStr(20, 1, "BPM (beats per minute): N/A");
       } else {
@@ -237,17 +236,14 @@ void Display() {
                  (double)size_for_last_beats * 1000 * 60 /
                      duration_for_last_beats);
       }
-      mutex.unlock();
 
       // Display BPS
-      mutex.lock();
       if (last_beats.Empty()) {
         PrintStr(20, 2, "BPS (beats per seconds): N/A");
       } else {
         PrintStr(20, 2, "BPS (beats per seconds): %f",
                  (double)size_for_last_beats * 1000 / duration_for_last_beats);
       }
-      mutex.unlock();
 
       // variation of the intervals
       msg = "Variation for beats (25 ms tick): ";
@@ -263,17 +259,13 @@ void Display() {
         double stdev = std::sqrt(sq_sum / vec.size() - mean * mean);
         msg += std::to_string(stdev) + std::string("     ");
       }
-      mutex.lock();
       PrintStr(20, 3, msg.c_str());
-      mutex.unlock();
       msg.clear();
 
       last_print_time = now;
     } // Print time and info
 
-    mutex.lock();
     PrintStr(0, 0, "%d", g_count);
-    mutex.unlock();
 
     refresh();
     std::this_thread::sleep_for(chrono::milliseconds(50));
@@ -285,6 +277,7 @@ int main() {
   SetupWindowsDisplay();
 #else
   initscr();
+  noecho();
 #endif
 
   std::thread beat_th(Beat);
